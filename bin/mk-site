@@ -1,0 +1,37 @@
+#!/bin/sh
+
+NAME=`cat _config.yml | grep 'name:' | cut -c 7-`
+DESC=`cat _config.yml | grep 'description:' | cut -c 14-`
+echo -e "Building site for $NAME"
+
+TAGS=`bin/ls-tags`
+echo -e "Tags found:\n$TAGS\n"
+
+# add tags to README
+echo -e "Adding tags to README"
+echo -e "# $NAME\n" > index.md
+echo -e "$DESC\n" >> index.md
+echo -e "## Tags\n" >> index.md
+echo -e "$TAGS" | awk '{print "- ["$1"](./tags/"$1")"}' >> index.md
+
+# add notes list to README
+echo -e "Adding notes list to README"
+echo -e "\n## Notes\n" >> index.md
+git ls-files '*.md' '*.markdown' | grep -v README | grep -v "tags/" | bin/mk-index >> index.md
+
+# generate notes list per tag
+echo -e "Generating notes list per tag"
+git rm -f 'tags/*.md'
+mkdir -p tags
+echo -e "$TAGS" | xargs -n1 -I{} sh -c "echo -e \"# {}\n\" > tags/{}.md"
+echo -e "$TAGS" | xargs -n1 -I{} sh -c "git grep --name-only 'tags: .*{}' -- '*.md' '*.markdown' | bin/mk-index >> tags/{}.md"
+
+# add README to git
+echo -e "Adding README to git"
+git add index.md
+
+# add tag files to git
+echo -e "Adding tag files to git"
+echo -e "$TAGS" | xargs -n1 -I{} git add tags/{}.md
+
+echo -e "Done"
